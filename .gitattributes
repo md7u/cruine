@@ -1,0 +1,24 @@
+# Normalize line endings
+* text=auto
+
+# Scripts and shell must use LF
+*.sh text eol=lf
+*.mk text eol=lf
+Makefile text eol=lf
+build.ninja text eol=lf
+meson.build text eol=lf
+toolchain.cmake text eol=lf
+*.py text eol=lf
+*.pyi text eol=lf
+
+# Man pages and recipes are plain text
+*.1 text
+*.5 text
+*.json text
+*.md text
+*.patch text
+
+# Binaries
+*.pyc binary
+*.so binary
+*.img binary

@@ -1,0 +1,22 @@
+# CRUINE — build.ninja
+# Builds the standalone cru binary via scripts/package.sh (same artifact as
+# `make build`). Install prefix is auto-detected by scripts/detect.sh:
+#   * Cudane (musl-libc)   -> /system
+#   * glibc GNU/Linux       -> /usr
+# Usage: ninja
+#        DESTDIR=/mnt ninja install
+
+rule package
+  command = ./scripts/package.sh $$(pwd)/builddir
+  description = pyinstaller bundle cru
+
+rule install
+  command = install -Dm755 $in $${DESTDIR}$$(./scripts/detect.sh prefix)/bin/cru
+  description = install cru
+
+builddir = builddir
+
+build $builddir/cru: package
+default $builddir/cru
+
+build install: install $builddir/cru

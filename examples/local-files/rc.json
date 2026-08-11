@@ -1,0 +1,37 @@
+{
+  "project_name": "LocalAOSP",
+  "rom": {
+    "source": "https://github.com/LineageOS/android.git",
+    "branch": "lineage-20.0",
+    "lunch_prefix": "lineage",
+    "build_target": "bacon"
+  },
+  "device": {
+    "codename": "localtest",
+    "files": [
+      {
+        "type": "device",
+        "url": "~/roms/device_xiaomi_localtest",
+        "target_path": "device/xiaomi/localtest"
+      },
+      {
+        "type": "kernel",
+        "url": "~/roms/kernel_xiaomi_localtest",
+        "target_path": "kernel/xiaomi/localtest"
+      },
+      {
+        "type": "vendor",
+        "url": "~/roms/vendor_xiaomi_localtest",
+        "target_path": "vendor/xiaomi/localtest"
+      }
+    ]
+  },
+  "options": {
+    "use_ccache": false,
+    "build_variant": "eng"
+  },
+  "output": {
+    "format": ".zip",
+    "compression_level": 6
+  }
+}

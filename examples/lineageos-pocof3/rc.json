@@ -1,0 +1,41 @@
+{
+  "project_name": "LineageOS-PocoF3",
+  "rom": {
+    "source": "https://github.com/LineageOS/android.git",
+    "branch": "lineage-21.0",
+    "lunch_prefix": "lineage",
+    "build_target": "bacon"
+  },
+  "device": {
+    "codename": "alioth",
+    "repositories": [
+      {
+        "type": "device",
+        "url": "https://github.com/LineageOS/android_device_xiaomi_alioth.git",
+        "target_path": "device/xiaomi/alioth"
+      },
+      {
+        "type": "kernel",
+        "url": "https://github.com/LineageOS/android_kernel_xiaomi_alioth.git",
+        "target_path": "kernel/xiaomi/alioth"
+      },
+      {
+        "type": "vendor",
+        "url": "https://github.com/TheMuppets/manifest_xiaomi_alioth.git",
+        "target_path": "vendor/xiaomi/alioth"
+      }
+    ]
+  },
+  "options": {
+    "use_ccache": true,
+    "ccache_size": "50G",
+    "clean_build": false,
+    "build_variant": "userdebug",
+    "parallel_jobs": 16
+  },
+  "output": {
+    "format": ".tar.gz",
+    "custom_name": "LineageOS-21.0-alioth-UNOFFICIAL",
+    "compression_level": 9
+  }
+}

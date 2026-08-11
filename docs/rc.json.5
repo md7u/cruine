@@ -1,0 +1,316 @@
+.TH RC.JSON 5 "August 2026" "Cruine 0.1.0" "File Formats"
+.SH NAME
+rc.json \- Cruine recipe file
+.SH DESCRIPTION
+.B rc.json
+is the Cruine recipe: a JSON document validated against the
+.B RecipeSchema
+model. It describes the ROM manifest, the target device and its source
+trees, build options, output packaging, patches, and lifecycle hooks.
+.PP
+Cruine looks for
+.B rc.json
+in the current working directory. Pass an explicit file with
+.BI \-r/\-\-recipe " FILE"
+or point the legacy pipeline elsewhere.
+.SH TOP-LEVEL KEYS
+.TP
+.B project_name
+(required, string) Short name of the build, e.g.
+.BR LineageOS-PocoF3 .
+Used for the workspace directory and default archive name.
+.TP
+.B rom
+(required, object) Upstream ROM manifest and build target:
+.RS
+.TP
+.B source
+(required, string) Git URL of the manifest, e.g.
+.BR https://github.com/LineageOS/android.git .
+A
+.B file://
+URL or plain local path initializes from a local git repository
+(fully offline builds).
+.TP
+.B branch
+(required, string) Manifest branch, e.g.
+.BR lineage-21.0 .
+.TP
+.B lunch_prefix
+(required, string) Lunch prefix, e.g.
+.BR lineage .
+.TP
+.B build_target
+(required, string) Make target, e.g.
+.BR bacon .
+.TP
+.B manifest
+(optional, string) Manifest file inside the manifest repository, e.g.
+.BR snapshot.xml .
+Defaults to
+.BR default.xml
+or
+.BR manifest.xml .
+.TP
+.B groups
+(optional, string) Manifest groups to sync, comma-separated. Defaults to the
+.B default
+group; prefix a group with
+.B -
+to exclude it (e.g.
+.BR "default,-pdk" ).
+.TP
+.B depth
+(optional, integer) Shallow-clone depth applied to the manifest and every
+project (e.g.
+.B 1
+for a shallow network sync).
+.RE
+.TP
+.B device
+(required, object) Target device:
+.RS
+.TP
+.B codename
+(required, string) Device codename, e.g.
+.BR alioth .
+Used to find build outputs under
+.IR out/target/product/<codename> .
+.TP
+.B repositories
+(optional, array) Remote source trees. Each entry:
+.RS
+.TP
+.B type
+One of
+.BR device ,
+.BR kernel ,
+.BR vendor ,
+.BR other .
+.TP
+.B url
+Git URL to clone (a
+.B file://
+URL or plain local path clones from a local repository).
+.TP
+.B target_path
+Placement inside the workspace, e.g.
+.BR device/xiaomi/alioth .
+.RE
+.TP
+.B files
+(optional, array) Local source sets instead of git clones. Each entry uses
+the same
+.BR type / url / target_path
+shape, with
+.B url
+being a local path (copied recursively); a
+.B file://
+prefix is accepted.
+.RE
+At least one of
+.B repositories
+or
+.B files
+is required.
+.TP
+.B input
+(optional, object) Repack mode: an existing ROM archive to extract, modify,
+and re-archive instead of building from source.
+.RS
+.TP
+.B archive
+(string, optional) Path (or
+.BR file://
+path) of the archive to extract.
+.TP
+.B format
+(string, optional) Archive format override; auto-detected from the
+extension when omitted. One of
+.BR .zip ,
+.BR .tar ,
+.BR .tar.gz ,
+.BR .tar.bz2 ,
+.BR .tar.xz ,
+.BR .tgz ,
+.BR .7z .
+.RE
+When
+.B input.archive
+is set, the pipeline extracts the archive into
+.IR out/target/product/<codename> ,
+runs
+.B post_fetch
+hooks, patches,
+.B pre_build
+and
+.B post_build
+hooks, then packages the result.
+.TP
+.B options
+(optional, object) Build behaviour:
+.RS
+.TP
+.B use_ccache
+(boolean, default true) Enable ccache.
+.TP
+.B ccache_size
+(string, default
+.BR 50G )
+ccache size limit, e.g.
+.BR 50G ,
+.BR 4G ,
+.BR 800M .
+.TP
+.B clean_build
+(boolean, default false) Force
+.BR "mka clean" .
+.TP
+.B build_variant
+(string, default
+.BR userdebug )
+One of
+.BR eng ,
+.BR user ,
+.BR userdebug .
+.TP
+.B parallel_jobs
+(integer, optional) Parallel job count.
+.TP
+.B extra_make_args
+(array of strings, default empty) Extra arguments appended to the
+.B mka
+invocation.
+.RE
+.TP
+.B output
+(optional, object) Packaging:
+.RS
+.TP
+.B format
+(string, default
+.BR .zip )
+One of
+.BR .zip ,
+.BR .tar.gz ,
+.BR .tar.bz2 ,
+.BR .tar.xz ,
+.BR .tgz ,
+.BR .7z ,
+.BR .img ,
+.BR .iso ,
+.BR .tar .
+.TP
+.B custom_name
+(string, optional) Archive basename; defaults to
+.IR <project_name>\-<codename> .
+.TP
+.B compression_level
+(integer, 0..9, default 6) Compression level.
+.TP
+.B exclude_dirs
+(array of strings, default
+.BR ["obj", "symbols"] )
+Directories skipped while packaging.
+.RE
+.TP
+.B patches
+(optional, array) Patch files applied after fetch. Each entry:
+.RS
+.TP
+.B file
+Path to the patch (a diff readable by
+.BR "git apply" ).
+.TP
+.B directory
+Subdirectory of the workspace in which to apply it (default
+.BR "." ).
+.TP
+.B strip
+Patch level (default
+.BR 1 ).
+.RE
+.TP
+.B hooks
+(optional, array) Shell commands run at pipeline phases. Each entry:
+.RS
+.TP
+.B name
+Human-readable name.
+.TP
+.B command
+Shell command executed via
+.BR sh \-c .
+.TP
+.B phase
+One of
+.BR pre_fetch ,
+.BR post_fetch ,
+.BR pre_build ,
+.BR post_build
+(default
+.BR pre_build ).
+.TP
+.B workdir
+Working directory relative to the workspace (default
+.BR "." ).
+.RE
+.SH EXAMPLE
+.nf
+{
+  "project_name": "LineageOS-PocoF3",
+  "rom": {
+    "source": "https://github.com/LineageOS/android.git",
+    "branch": "lineage-21.0",
+    "lunch_prefix": "lineage",
+    "build_target": "bacon"
+  },
+  "device": {
+    "codename": "alioth",
+    "repositories": [
+      { "type": "device",
+        "url": "https://github.com/LineageOS/android_device_xiaomi_alioth.git",
+        "target_path": "device/xiaomi/alioth" },
+      { "type": "kernel",
+        "url": "https://github.com/LineageOS/android_kernel_xiaomi_alioth.git",
+        "target_path": "kernel/xiaomi/alioth" }
+    ]
+  },
+  "options": { "use_ccache": true, "ccache_size": "50G" },
+  "output": { "format": ".tar.gz",
+              "custom_name": "LineageOS-21.0-alioth-UNOFFICIAL",
+              "compression_level": 9 }
+}
+.fi
+.SH REPACK EXAMPLE
+.nf
+{
+  "project_name": "StockMod",
+  "rom": {
+    "source": "https://example.com/android.git",
+    "branch": "b",
+    "lunch_prefix": "lineage",
+    "build_target": "bacon"
+  },
+  "device": { "codename": "alioth",
+              "repositories": [ ] },
+  "input": { "archive": "/srv/roms/stock.zip" },
+  "options": { "use_ccache": false },
+  "output": { "format": ".zip" },
+  "hooks": [
+    { "name": "debloat",
+      "command": "rm -f out/target/product/alioth/system/app/News/News.apk",
+      "phase": "post_build" }
+  ]
+}
+.fi
+.SH GENERATING
+A starter recipe is produced with:
+.PP
+.nf
+cru init [target]
+cru --generate-template ./rc.json
+.fi
+.SH SEE ALSO
+.BR cru (1),
+.BR crush (1)

@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a defect in Cruine (the `cru` binary or `crush` shell)
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Fill in the details below;
+        the more context you provide, the faster it can be diagnosed.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands (`cru ...` / `cru crush`), starting state, and inputs.
+      placeholder: |
+        1. Write rc.json with ...
+        2. Run `cru /tmp/out --dry-run`
+        3. See the error
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `cru --version`.
+      placeholder: "Cruine 0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Host OS/distro, Python version if running from source, architecture.
+      placeholder: "Debian 12 (x86_64), Python 3.12"
+    validations:
+      required: true
+  - type: textarea
+    id: recipe
+    attributes:
+      label: Recipe (sanitised)
+      description: Your `rc.json`, with any credentials, URLs, or private paths redacted.
+      render: json
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and error output
+      description: Relevant terminal output or entries from `<project_name>-build.log`.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have redacted all secrets and credentials from the recipe and logs.
+          required: true
+        - label: I searched existing issues and did not find a duplicate.

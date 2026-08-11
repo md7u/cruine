@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose a new command, option, or capability for Cruine
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement. Describe the problem you are
+        trying to solve and how Cruine should help.
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem does this solve, and for whom?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: How should `cru` / `crush` / `rc.json` behave? Include command or recipe syntax sketches if relevant.
+      placeholder: |
+        `cru build --incremental`
+        or a new `rc.json` field such as ...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds or other tools you already tried.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues and did not find a duplicate.

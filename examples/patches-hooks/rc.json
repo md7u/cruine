@@ -1,0 +1,56 @@
+{
+  "project_name": "PatchedROM",
+  "rom": {
+    "source": "https://github.com/LineageOS/android.git",
+    "branch": "lineage-21.0",
+    "lunch_prefix": "lineage",
+    "build_target": "bacon"
+  },
+  "device": {
+    "codename": "example",
+    "repositories": [
+      {
+        "type": "device",
+        "url": "https://github.com/LineageOS/android_device_xiaomi_example.git",
+        "target_path": "device/xiaomi/example"
+      }
+    ]
+  },
+  "options": {
+    "use_ccache": true,
+    "ccache_size": "20G",
+    "clean_build": true,
+    "build_variant": "userdebug",
+    "parallel_jobs": 8,
+    "extra_make_args": [
+      "-k",
+      "WITH_DEXPREOPT=true"
+    ]
+  },
+  "output": {
+    "format": ".7z",
+    "custom_name": "PatchedROM-example",
+    "compression_level": 9
+  },
+  "patches": [
+    {
+      "file": "patches/0001-demo-signing.patch",
+      "directory": "build/make",
+      "strip": 1
+    }
+  ],
+  "hooks": [
+    {
+      "name": "backup-signing-keys",
+      "command": "mkdir -p backup && cp -r out/target/product/example backup/",
+      "phase": "post_build",
+      "workdir": "."
+    },
+    {
+      "name": "log-rom-info",
+      "command": "uname -a > rom-info.txt",
+      "phase": "pre_build",
+      "workdir": "."
+    }
+  ]
+}

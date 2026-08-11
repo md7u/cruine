@@ -1,0 +1,29 @@
+{
+  "project_name": "StockMod",
+  "rom": {
+    "source": "https://example.com/android.git",
+    "branch": "lineage-21.0",
+    "lunch_prefix": "lineage",
+    "build_target": "bacon"
+  },
+  "device": {
+    "codename": "alioth"
+  },
+  "input": {
+    "archive": "/srv/roms/stock.zip"
+  },
+  "options": {
+    "use_ccache": false
+  },
+  "output": {
+    "format": ".zip",
+    "custom_name": "StockMod-alioth-modded"
+  },
+  "hooks": [
+    {
+      "name": "debloat",
+      "command": "rm -f out/target/product/alioth/system/app/News/News.apk",
+      "phase": "post_build"
+    }
+  ]
+}

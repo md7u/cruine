@@ -1,0 +1,89 @@
+.TH CRUSH 1 "August 2026" "Cruine 0.1.0" "User Commands"
+.SH NAME
+cru crush \- interactive shell over the cruine command tree
+.SH SYNOPSIS
+.B cru crush
+.RI [ path ]
+.br
+.B cru sh
+.RB [ \-p " path" ]
+.RB [ \-\-no\-color ]
+.SH DESCRIPTION
+.B cru crush
+opens a stateful REPL that navigates the cruine command tree. Commands are
+resolved relative to the current tree path, so the shell behaves like a
+filesystem over the command hierarchy. The prompt reflects the current
+path, e.g.
+.B cru/b> .
+.PP
+The initial path may be given positionally
+.RB ( "cru crush a/analyze" )
+or with
+.BR \-p/\-\-path .
+An unknown start path is reported but does not prevent the shell from
+opening.
+.PP
+On interactive terminals readline provides tab completion over built-ins,
+command names, aliases, and flags, plus persistent history in
+.BR ~/.cru_history .
+.SH BUILT-INS
+.TP
+.B exit ", " quit
+Leave the shell.
+.TP
+.B cd " [path]"
+Change the current tree path. With no argument, return to the root.
+.TP
+.B pwd
+Print the current path as
+.IR cru/<group>/<command> .
+.TP
+.B ls
+List the children (commands and aliases) of the current node.
+.TP
+.B tree " [path]"
+Print a depth-limited subtree rooted at the current node or the given path.
+.TP
+.B help " [path]"
+Print detailed help for the current node or the given path, including
+built-ins and hints.
+.TP
+.B clear
+Clear the terminal.
+.SH PATH SYNTAX
+.TP
+.B ~ ", " /
+Reset to the tree root.
+.TP
+.B .
+Current node (no-op).
+.TP
+.B ..
+Move up one level; at the root it is a no-op.
+.TP
+.I child/child
+Slash-separated relative descent, e.g.
+.BR cd b/bundle .
+.PP
+Any line that is not a built-in is split with
+.B shlex
+and dispatched as a tree command relative to the current path, so
+.B bake
+at
+.B cru/b>
+runs
+.BR "cru b/bake" .
+.SH OPTIONS
+.TP
+.BI \-p,\ \-\-path " PATH"
+Initial tree path.
+.TP
+.B \-\-no\-color
+Disable ANSI colors in the prompt.
+.SH ENVIRONMENT
+.TP
+.B ~/.cru_history
+Command history; written on exit when the shell runs on a terminal.
+.SH SEE ALSO
+.BR cru (1),
+.BR rc.json (5)

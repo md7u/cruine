@@ -1,0 +1,453 @@
+.TH CRU 1 "August 2026" "Cruine 0.1.0" "User Commands"
+.SH NAME
+cru \- Android Custom ROM build automation engine
+.SH SYNOPSIS
+.B cru
+.RI <destination>
+.RI [ options ]
+.br
+.B cru
+.RI <command>
+.RI [ arguments ]
+.SH DESCRIPTION
+.B cru
+automates the complete Android Custom ROM build pipeline. It scans the
+current working directory for a
+.B rc.json
+recipe, pulls the ROM manifest and device source trees, configures the
+lunch target, executes the build, and packages the output into an archive
+at the requested destination.
+.PP
+The ROM manifest is synced by Cruine's native sync engine: it parses AOSP
+.I repo
+manifest XML directly and clones every active project with plain
+.BR git .
+No
+.B repo
+binary is required. Any URL form works (https, ssh, git,
+.BR file:// ,
+scp-style
+.IR git@host:path ,
+or a plain local path) and any revision can be requested (branch, tag, or
+SHA-1). Unchanged projects are skipped on repeat runs via state kept in
+.IR <workspace>/.cruine .
+.PP
+Sources may come from the network or from local git repositories: a
+.B file://
+URL (or a plain filesystem path) for the manifest or any device tree is
+initialized/cloned without network access.
+.PP
+Cruine can also repack an existing ROM archive. When the recipe defines an
+.B input.archive
+(or when
+.B cru repack
+is used), the archive is extracted into the product tree, the recipe's
+patches and hooks run, and the result is re-archived. Extraction is
+path-traversal safe.
+.PP
+The tool supports two invocation styles:
+.TP
+.B Legacy pipeline
+.B cru /path/to/output
+runs the full pipeline (discover recipe, validate environment, fetch
+sources, build, package) against a destination directory. This is the
+classic single-command workflow.
+.TP
+.B Command tree
+.B cru <command>
+dispatches into a deep command tree of groups and functional commands.
+Run
+.B cru help
+or
+.BR "cru tree" .
+.SH LEGACY OPTIONS
+.TP
+.BI \-r,\ \-\-recipe " FILE"
+Path to a non-standard recipe file (default:
+.BR ./rc.json ).
+.TP
+.BI \-w,\ \-\-work-dir " PATH"
+Build workspace directory (default:
+.IR <cwd>/<project_name> ).
+.TP
+.BI \-j,\ \-\-jobs " N"
+Number of parallel build jobs (overrides the recipe option).
+.TP
+.BI \-v,\ \-\-verbose
+Enable verbose (debug) logging.
+.TP
+.B \-\-no\-color
+Disable ANSI colors.
+.TP
+.B \-\-dry\-run
+Validate the recipe and print the execution plan without running anything.
+.TP
+.B \-\-skip\-fetch ", " \-\-no\-fetch
+Skip source fetching and use the existing tree.
+.TP
+.B \-\-skip\-package
+Build but do not package the outputs.
+.TP
+.B \-\-clean
+Force a clean build
+.RB ( "mka clean" ).
+.TP
+.BI \-\-mem\-limit " MB"
+Enforce a virtual-memory ulimit during the build.
+.TP
+.BI \-g,\ \-\-generate-template " PATH"
+Write an example
+.B rc.json
+recipe and exit.
+.TP
+.B \-\-list\-formats
+List supported output archive formats and exit.
+.TP
+.B \-\-version
+Print the Cruine version and exit.
+.SH COMMAND TREE
+The tree mixes letter groups and functional commands. Each group contains
+member commands; almost every command has aliases (see
+.BR "cru help" ).
+.SS Functional commands
+.TP
+.B build
+Build the ROM via the full pipeline.
+.TP
+.B init
+Write an example
+.B rc.json
+recipe.
+.TP
+.B config
+Show the active recipe configuration.
+.TP
+.B doctor
+Validate the host environment and tools. Required: git, bash, tar,
+python3, make, java, javac (a full JDK, not a bare JRE). Warns about common
+AOSP/Kernel build tools (clang, clang++, gcc, g++, bison, flex, ...) and
+optional fallbacks, and reports the detected libc/toolchain profile (Cudane:
+musl + clang/clang++, target triple <arch>-unknown-linux-musl; glibc: gcc/g++,
+<arch>-unknown-linux-gnu) plus the JDK version against the usual AOSP targets.
+.TP
+.B info
+Print the build plan for the active recipe.
+.TP
+.B fetch
+Pull manifests and device trees.
+.TP
+.B patch
+Apply recipe patches.
+.TP
+.B pack
+Package build outputs.
+.B \-\-source
+packages an arbitrary directory (e.g. an extracted ROM);
+.B \-\-format
+overrides the recipe format.
+.TP
+.B extract
+Extract a ROM archive into a directory. Positional
+.I archive
+plus an optional
+.B \-o/\-\-output
+target; the default output directory is the archive name without its suffix.
+Supports
+.BR .zip ,
+.BR .tar ,
+.BR .tar.gz ,
+.BR .tar.bz2 ,
+.BR .tar.xz ,
+.BR .tgz ,
+.BR .7z .
+.TP
+.B repack
+Extract a ROM archive into the product tree, run the recipe's patches and
+hooks, and re-archive it. Positionals:
+.I archive
+and an optional
+.IR destination .
+.B \-\-format
+overrides the output format.
+.TP
+.B clean
+Request a clean build.
+.TP
+.B formats
+List supported output formats.
+.TP
+.B version
+Print Cruine version.
+.TP
+.B env
+Show host environment report.
+.TP
+.B log
+Tail most recent build log.
+.TP
+.B ccache
+Inspect ccache statistics.
+.TP
+.B jobs
+Print recommended parallel job count.
+.TP
+.B path
+Resolve and echo a command path.
+.TP
+.B tree
+Print command tree.
+.TP
+.B help
+Show help for a command or path.
+.TP
+.B tier
+Deep command chain (depth 25).
+.TP
+.B crush
+Interactive shell over the command tree.
+.SS Group commands
+The letters
+.B a
+through
+.B z
+and
+.B A
+through
+.B Z
+are command groups (analytics, builder, control, device, engine, fetch, ...).
+Each member command exposes subcommands and a deep planet chain; inspect a
+group with
+.BR "cru a" .
+.SH BUILD COMMAND FLAGS
+In addition to the common flags below,
+.B cru build
+accepts:
+.TP
+.BI \-w,\ \-\-work\-dir " PATH"
+Build workspace directory.
+.TP
+.B \-\-skip\-fetch ", " \-\-no\-fetch
+Skip source fetching.
+.TP
+.B \-\-skip\-package
+Skip packaging.
+.TP
+.B \-\-clean
+Force a clean build.
+.TP
+.BI \-\-mem\-limit " MB"
+Virtual memory ulimit.
+.TP
+.B \-\-no\-color
+Disable ANSI colors.
+.SH COMMON FLAGS
+Available on every tree command.
+.TP
+.BI \-v,\ \-\-verbose
+Enable verbose output.
+.TP
+.BI \-q,\ \-\-quiet
+Suppress non-critical output.
+.TP
+.BI \-x,\ \-\-debug
+Enable debug tracing.
+.TP
+.BI \-d,\ \-\-dry\-run
+Preview without executing.
+.TP
+.BI \-f,\ \-\-format " FMT"
+Output format.
+.TP
+.BI \-o,\ \-\-output " PATH"
+Output location.
+.TP
+.BI \-p,\ \-\-path " PATH"
+Target path.
+.TP
+.BI \-n,\ \-\-name " NAME"
+Name override.
+.TP
+.BI \-t,\ \-\-target " TARGET"
+Target device or tree.
+.TP
+.BI \-m,\ \-\-mode " MODE"
+Execution mode.
+.TP
+.BI \-c,\ \-\-config " FILE"
+Configuration file.
+.TP
+.BI \-r,\ \-\-recipe " FILE"
+Recipe file (rc.json).
+.TP
+.BI \-j,\ \-\-jobs " N"
+Parallel build jobs.
+.TP
+.BI \-l,\ \-\-list
+List items.
+.TP
+.BI \-s,\ \-\-silent
+Silent mode.
+.TP
+.BI \-e,\ \-\-env " KEY=VAL"
+Environment override.
+.SH ENVIRONMENT
+.TP
+.B CRUINE_CONFIG
+Path to the user config file (default
+.BR ~/.config/cruine/config.toml ).
+.TP
+.B CRU_JOBS
+Parallel job count; overrides the recipe and CLI
+.BR \-j .
+.TP
+.B USE_CCACHE
+Set to 1 when ccache is enabled by the recipe.
+.TP
+.B CCACHE_EXEC
+Path to the ccache binary used during the build.
+.TP
+.B CCACHE_DIR
+ccache cache directory (default
+.BR ~/.cache/ccache ).
+.TP
+.B LC_ALL ", " LANG
+Forced to
+.B C
+during builds for stable output.
+.SH BUILDING
+Cruine is built with Make, Ninja, Meson, or CMake. All share the host-profile
+detector
+.B scripts/detect.sh
+(musl/Cudane vs glibc), which selects the install prefix
+.BR /system
+(Cudane) or
+.BR /usr
+(glibc), and the toolchain
+.BR "clang/clang++" " (musl, targets " "x86_64/aarch64-unknown-linux-musl") "
+or
+.BR "gcc/g++" " (glibc, targets " "x86_64/aarch64-unknown-linux-gnu") ".
+.PP
+.nf
+make build && make install            # Make (prefix via env.mk)
+ninja && ninja install                # Ninja (DESTDIR honored)
+meson setup build && meson install -C build   # Meson (-Dprefix=... honored)
+.fi
+.PP
+Other build files:
+.RS
+.IP \[bu] 2
+env.mk, build.ninja, meson.build, scripts/cross.sh (Meson cross-file),
+toolchain.cmake (CMake), scripts/pkgconfig.sh (pkg-config wrapper),
+scripts/package.sh (PyInstaller build shared by Make/Ninja/Meson),
+packaging/cru.spec (PyInstaller spec).
+.RE
+.PP
+Overrides:
+.B CRUINE_LIBC
+(force musl/glibc),
+.B CRUINE_PREFIX
+(force install prefix),
+.B CC
+and
+.B CXX
+(force the compiler pair).
+.SH CONFIGURATION
+Cruine reads an optional user config from
+.B ~/.config/cruine/config.toml
+(overridable with the
+.B CRUINE_CONFIG
+environment variable). It controls all output formatting: the log line
+format, the timestamp pattern, per-status labels and colours, and the
+program name used by the
+.B {program}
+variable.
+.PP
+Log lines default to
+.B "[HH:MM:SS] [Status] message"
+with the status capitalised and colourised. Any format string is accepted;
+placeholders such as
+.BR {ts} ", " {time} ", " {date} ", " {status} ", " {label} ", " {level} ", "
+.BR {message} ", " {msg} ", " {program} ", " {pid} ", " {hostname} ", "
+.BR {counter} ", " {elapsed} ", " {color} ", " {reset} ", " {bold} " and " {dim}
+are supported. Unknown placeholders render empty; an empty format prints
+bare messages.
+.PP
+Over 200 named statuses ship with the logger (for example
+.BR Info ", " Ok ", " Warn ", " Error ", " Fatal ", " Build ", " Fetch ", "
+.BR Sync ", " Patch ", " Pack ", " Extract ", " Verify ", " Retry ", "
+.B Timeout
+and
+.BR Missing ).
+.PP
+.nf
+[general]
+program = "cru"
+
+[log]
+format = "[{ts}] [{color}{status}{reset}] {message}"
+timestamp_format = "%H:%M:%S"
+verbose = false
+no_color = false
+
+[log.statuses]
+Build = { label = "BUILDING", color = "bright_blue" }
+.fi
+.PP
+Manage the config from the CLI:
+.BR "cru config" " (show), " "cru config reload" ", " "cru config path" ", "
+.B "cru config init"
+(writes an example to
+.BR ~/.config/cruine/config.toml ;
+.B --dir PATH
+writes it into a chosen directory instead).
+.SH FILES
+.TP
+.B rc.json
+The active recipe; discovered in the current directory.
+.TP
+.B ~/.config/cruine/config.toml
+Optional user configuration (see
+.BR CONFIGURATION ).
+.TP
+.I <project_name>\-build.log
+Build log written next to the destination.
+.TP
+.B ~/.cru_history
+Shell command history (used by
+.BR "cru crush" ).
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Runtime error (missing recipe, build failure, packaging failure, ...).
+.TP
+.B 2
+Usage error (unknown command, unknown option).
+.TP
+.B 130
+Interrupted (SIGINT).
+.SH EXAMPLES
+.TP
+Run the full pipeline to a destination directory:
+.nf
+cru /home/user/build_outputs
+.fi
+.TP
+Dry-run with an explicit recipe:
+.nf
+cru /home/user/build_outputs --recipe ./recipes/pixel.json --dry-run
+.fi
+.TP
+Use the command tree:
+.nf
+cru info
+cru doctor
+cru build --skip-fetch --clean -j 16
+cru log --dir /var/log/rom
+cru tree 3
+.fi
+.SH SEE ALSO
+.BR rc.json (5),
+.BR crush (1)

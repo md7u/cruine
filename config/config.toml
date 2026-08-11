@@ -1,0 +1,30 @@
+# Cruine configuration (usually ~/.config/cruine/config.toml)
+# Optional: every key shown here is a default, so you only need to write
+# the values you want to change.
+
+[general]
+# Program name used by the {program} variable in log formats.
+program = "cru"
+
+[log]
+# Line format. Any string is accepted. Placeholders:
+#   {ts} {time} {date} {status} {label} {level} {message} {msg}
+#   {program} {pid} {hostname} {counter} {elapsed}
+#   {color} {reset} {bold} {dim}
+# Use "" to print bare messages. Unknown placeholders render empty.
+format = "[{ts}] [{color}{status}{reset}] {message}"
+
+# strftime pattern for {ts}/{time} (24-hour clock by default).
+timestamp_format = "%H:%M:%S"
+
+# Defaults; the -v / --verbose and --no-color flags override these.
+verbose = false
+no_color = false
+
+[log.statuses]
+# Override the label and/or colour of any status (see `cru config`).
+# Available colours: black red green yellow blue magenta cyan white gray,
+# bright_red bright_green bright_yellow bright_blue bright_magenta
+# bright_cyan bright_white, and modifiers bold / dim / underline.
+#   Info  = { label = "Info",  color = "cyan" }
+#   Build = { label = "BUILD", color = "bright_blue" }
