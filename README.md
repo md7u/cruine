@@ -16,7 +16,7 @@ cru /tmp/rom-out
 ## Usage
 
 - **Legacy** — `cru <destination>` runs every stage in one command.
-- **Command** — `cru <command>` drives individual stages and inspection tools, exposed through a large command tree with shell (`cru crush`).
+- **Command** — `cru <command>` drives stages and inspection tools with (`cru crush`).
 
 Both methods share the same recipe format, the same core stages, and the same
 options.
@@ -206,7 +206,7 @@ Cruine is a pure-Python project (Python 3.10+). Recommended setup:
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install "./src[dev]"
+python3 -m pip --python .venv/bin/python install "./src[dev]"
 .venv/bin/python -m pytest src/tests   # optional: run the test suite
 ```
 
@@ -1026,7 +1026,7 @@ Man pages install with `make install` (or `ninja install` /
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install "./src[dev]"
+python3 -m pip --python .venv/bin/python install "./src[dev]"
 make test      # .venv/bin/python -m pytest src/tests
 make lint      # ruff check + ruff format --check on src/
 make build     # standalone target/cru binary

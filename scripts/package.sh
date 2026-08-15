@@ -15,18 +15,21 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 DIST="${1:-${ROOT}/builddir}"
 WORK="${2:-${DIST}/cru-build}"
 PYTHON="${PYTHON:-python3}"
-BUILDVENV="${ROOT}/target/cru-buildvenv"
-BUILDVENVPY="${BUILDVENV}/bin/python"
-BUILDVENVPIP="${BUILDVENV}/bin/pip"
+BUILDVENV="${ROOT}/.venv"
+BUILDVENVPY="${BUILDVENV}/bin/python3"
+
+pip_venv() {
+    "${PYTHON}" -m pip --python "${BUILDVENVPY}" "$@"
+}
 
 if [ ! -x "${BUILDVENVPY}" ]; then
     "${PYTHON}" -m venv "${BUILDVENV}"
-    "${BUILDVENVPIP}" install --upgrade pip
-    "${BUILDVENVPIP}" install pyinstaller
-    "${BUILDVENVPIP}" install "${ROOT}/src"
+    pip_venv install --upgrade pip
+    pip_venv install pyinstaller
+    pip_venv install "${ROOT}/src"
 fi
 
-"${BUILDVENVPIP}" install --force-reinstall --no-deps "${ROOT}/src"
+pip_venv install --force-reinstall --no-deps "${ROOT}/src"
 
 mkdir -p "${DIST}"
 "${BUILDVENVPY}" -m PyInstaller --noconfirm \

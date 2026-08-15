@@ -2,7 +2,9 @@ REPO_ROOT   := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 SYSROOT     := /
 PYTHON      ?= python3
 VENV        ?= $(REPO_ROOT)/.venv
-PIP         := $(VENV)/bin/pip
+# Python 3.12+ venvs no longer ship a `pip` script in bin/, so install into
+# the venv via the interpreter targeting form instead.
+PIP         := $(PYTHON) -m pip --python $(VENV)/bin/python
 PY          := $(VENV)/bin/python
 PYINSTALLER := $(PY) -m PyInstaller
 

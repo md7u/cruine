@@ -22,7 +22,7 @@ scripts/          Standalone launcher bundled by PyInstaller
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install "./src[dev]"
+python3 -m pip --python .venv/bin/python install "./src[dev]"
 .venv/bin/python -m pytest src/tests
 ```
 
