@@ -13,6 +13,7 @@ class RepositoryModel(BaseModel):
     type: str = "other"
     url: str
     target_path: str
+    revision: str | None = None
 
     @field_validator("type")
     @classmethod

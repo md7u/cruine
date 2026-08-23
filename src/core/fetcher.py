@@ -79,10 +79,11 @@ class SourceFetcher:
             "clone",
             "--depth=1",
             "--single-branch",
-            localize_url(repository.url),
-            str(destination),
         ]
-        self._run_retry(command, f"clone {repository.url}")
+        if repository.revision:
+            command += ["--branch", repository.revision]
+        command += [localize_url(repository.url), str(destination)]
+        self._run_retry(command, f"clone {repository.url}", retry_cleanup_path=destination)
 
     def _copy_local_files(self) -> None:
         for item in self.recipe.device.files:
@@ -103,8 +104,16 @@ class SourceFetcher:
             else:
                 shutil.copy2(source, destination)
 
-    def _run_retry(self, command: list[str], label: str) -> None:
+    def _run_retry(
+        self,
+        command: list[str],
+        label: str,
+        retry_cleanup_path: Path | None = None,
+    ) -> None:
         last_code = -1
+        owned_dest: Path | None = None
+        if retry_cleanup_path is not None and not retry_cleanup_path.exists():
+            owned_dest = retry_cleanup_path
         for attempt in range(1, self.MAX_ATTEMPTS + 1):
             log.info(f"{label} (attempt {attempt}/{self.MAX_ATTEMPTS})")
             try:
@@ -127,6 +136,7 @@ class SourceFetcher:
                 log.success(f"{label} completed")
                 return
             if attempt < self.MAX_ATTEMPTS:
+                self._remove_partial(owned_dest)
                 log.warning(
                     f"{label} failed (exit {last_code}); retrying in {self.RETRY_DELAY_SECONDS}s"
                 )
@@ -134,3 +144,16 @@ class SourceFetcher:
         raise FetchError(
             f"{label} failed after {self.MAX_ATTEMPTS} attempts (exit code {last_code})"
         )
+
+    @staticmethod
+    def _remove_partial(path: Path | None) -> None:
+        """Remove a partially created clone destination between retries."""
+        if path is None or not path.exists():
+            return
+        try:
+            if path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+        except OSError as exc:
+            log.warning(f"Could not clean partial path {path}: {exc}")

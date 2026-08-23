@@ -212,6 +212,14 @@ def test_sub_builder_mixed_aliases() -> None:
         assert len(node.aliases) >= 3
 
 
+def test_mix_never_duplicates_short_flags() -> None:
+    from cruine.commands.flags import _mix
+
+    for index in range(20):
+        shorts = [flag.short for flag in _mix(index) if flag.short]
+        assert len(shorts) == len(set(shorts))
+
+
 def test_chain_builder_builds_path() -> None:
     chain = ChainBuilder(("one", "two", "three"), seed=0).build()
     assert chain.name == "one"

@@ -6,6 +6,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
+from typing import ClassVar
 
 import cruine.cli as cli
 import pytest
@@ -96,6 +97,56 @@ def test_pipeline_options_defaults() -> None:
     assert opts.jobs is None
     assert opts.skip_fetch is False
     assert opts.clean is False
+
+
+def test_run_pipeline_skip_fetch_still_runs_hooks_and_patches(
+    sample_recipe, tmp_path, monkeypatch
+) -> None:
+    """Legacy --skip-fetch must behave like repack mode: post_fetch hooks and
+    patches still run so the tree is not left unpatched."""
+    from unittest import mock
+
+    from cruine.core.environment import EnvironmentManager
+    from cruine.core.executor import BuildExecutor
+    from cruine.core.packager import OutputPackager
+
+    patch_file = tmp_path / "tree.patch"
+    patch_file.write_text(
+        "--- a/file.txt\n"
+        "+++ b/file.txt\n"
+        "@@ -1 +1 @@\n"
+        "-hello\n"
+        "+patched\n",
+        encoding="utf-8",
+    )
+    recipe = json.loads(json.dumps(sample_recipe))
+    recipe["patches"] = [{"file": str(patch_file), "directory": "tree"}]
+    recipe["hooks"] = [
+        {"name": "hooked", "command": "echo hooked > hooked.txt", "phase": "post_fetch"}
+    ]
+    (tmp_path / "rc.json").write_text(json.dumps(recipe), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    workspace = tmp_path / "TestROM"
+    tree = workspace / "tree"
+    tree.mkdir(parents=True)
+    (tree / "file.txt").write_text("hello\n", encoding="utf-8")
+
+    class _ReadyReport:
+        ready = True
+        recommended_jobs = 4
+        missing_required: ClassVar[list[str]] = []
+
+    with (
+        mock.patch.object(EnvironmentManager, "validate", return_value=_ReadyReport()),
+        mock.patch.object(BuildExecutor, "build"),
+        mock.patch.object(OutputPackager, "package", return_value=tmp_path / "artifact.zip"),
+    ):
+        opts = PipelineOptions(destination=tmp_path / "out", skip_fetch=True)
+        assert run_pipeline(opts) == 0
+
+    assert (tree / "file.txt").read_text(encoding="utf-8") == "patched\n"
+    assert (workspace / "hooked.txt").read_text(encoding="utf-8").strip() == "hooked"
 
 
 @requires_git

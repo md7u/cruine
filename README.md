@@ -5,7 +5,7 @@
 ![Build](https://img.shields.io/badge/Build-Passing-21262d?style=flat&labelColor=161b22)
 ![License](https://img.shields.io/badge/License-MIT-21262d?style=flat&labelColor=161b22)
 
-An Android Custom ROM builder, automates the complete Android Custom ROM build pipeline by reading a recipe, syncs the ROM manifest and device source trees validates the host environment, configures ccache, resolves the lunch combo, runs the build applies patches and lifecycle hooks, and packages the output into a configurable archive at a given destination.
+Android Custom ROM builder, automates the complete Android Custom ROM build pipeline by reading a recipe, syncs the ROM manifest and device source trees validates the host environment, configures ccache, resolves the lunch combo, runs the build applies patches and lifecycle hooks, and packages the output into a configurable archive at a given destination.
 
 ```sh
 cru /tmp/rom-out

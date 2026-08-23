@@ -23,6 +23,8 @@ class BuildError(RuntimeError):
 class BuildExecutor:
     """Spawns the AOSP build pipeline and streams output in real time."""
 
+    TERMINATE_GRACE_SECONDS = 10
+
     def __init__(
         self,
         recipe: RecipeSchema,
@@ -80,10 +82,25 @@ class BuildExecutor:
                 handle.write(line)
             if parser.is_fatal(stripped):
                 log.warning("Fatal build error detected, terminating build...")
-                with contextlib.suppress(ProcessLookupError, PermissionError):
-                    os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+                BuildExecutor._terminate(proc)
                 break
         proc.wait()
+
+    @staticmethod
+    def _terminate(proc: subprocess.Popen[str]) -> None:
+        """SIGTERM the process group, escalating to SIGKILL if it lingers."""
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        try:
+            proc.wait(timeout=BuildExecutor.TERMINATE_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            log.warning(
+                "Build ignored SIGTERM for "
+                f"{BuildExecutor.TERMINATE_GRACE_SECONDS}s; sending SIGKILL"
+            )
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            proc.wait()
 
     def build(self, env: dict[str, str], clean: bool = False) -> None:
         options = self.recipe.options

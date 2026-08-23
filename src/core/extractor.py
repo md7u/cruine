@@ -58,6 +58,18 @@ def detect_format(archive: Path) -> str:
     )
 
 
+def _normalize_format_hint(hint: str) -> str:
+    """Normalize a configured format hint to a supported archive suffix."""
+    fmt = hint.strip().lower()
+    if not fmt.startswith("."):
+        fmt = f".{fmt}"
+    if fmt not in SUPPORTED_INPUT_FORMATS:
+        raise ExtractionError(
+            f"Unsupported input format {fmt!r}; supported: {', '.join(SUPPORTED_INPUT_FORMATS)}"
+        )
+    return fmt
+
+
 class RomExtractor:
     """Extracts a ROM archive into a directory, ready for editing or repack."""
 
@@ -68,18 +80,20 @@ class RomExtractor:
         assert self.workspace is not None
         return self.workspace / "out" / "target" / "product" / codename
 
-    def extract(self, archive: str, destination: Path) -> int:
+    def extract(self, archive: str, destination: Path, format_hint: str | None = None) -> int:
         """Extract ``archive`` into ``destination``.
 
         Returns the number of regular files extracted. ``destination`` is
-        created if missing.
+        created if missing. When ``format_hint`` is provided (a suffix like
+        ``.zip``, e.g. from a recipe's ``input.format``) it takes precedence
+        over suffix-based detection.
         """
         archive = Path(localize_url(archive))
         if not archive.is_file():
             raise ExtractionError(f"ROM archive does not exist: {archive}")
         destination = Path(destination)
         destination.mkdir(parents=True, exist_ok=True)
-        fmt = detect_format(archive)
+        fmt = _normalize_format_hint(format_hint) if format_hint else detect_format(archive)
         log.info(f"Extracting {archive.name} ({fmt}) -> {destination}")
         if fmt in (".zip",):
             count = self._extract_zip(archive, destination)

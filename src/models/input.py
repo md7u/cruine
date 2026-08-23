@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 SUPPORTED_INPUT_FORMATS: tuple[str, ...] = (
     ".zip",
@@ -16,6 +16,8 @@ SUPPORTED_INPUT_FORMATS: tuple[str, ...] = (
 
 
 class InputModel(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
     archive: str | None = None
     format: str | None = None
 

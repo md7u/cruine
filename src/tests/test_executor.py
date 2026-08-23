@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from unittest import mock
 
@@ -93,3 +94,42 @@ def test_build_mem_limit_prepends_ulimit() -> None:
         BuildExecutor(recipe, Path("/tmp/ws"), mem_limit_mb=4096).build({"CRU_JOBS": "4"})
     script = run_mock.call_args.args[0]
     assert script.startswith("ulimit -v 4194304; cd")
+
+
+def test_drain_escalates_to_sigkill_when_sigterm_ignored(tmp_path: Path) -> None:
+    """A child that traps SIGTERM must still be killed via escalation."""
+    import time
+
+    class _FatalParser:
+        def evaluate(self, line: str) -> None:
+            pass
+
+        def is_fatal(self, line: str) -> bool:
+            return True
+
+        def summary(self) -> None:
+            pass
+
+    proc = subprocess.Popen(
+        "trap '' TERM; echo ready; while :; do sleep 1; done",
+        shell=True,
+        executable="/bin/bash",
+        cwd=str(tmp_path),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        start_new_session=True,
+    )
+    try:
+        with mock.patch.object(BuildExecutor, "TERMINATE_GRACE_SECONDS", 0.2):
+            start = time.monotonic()
+            BuildExecutor._drain(proc, _FatalParser())
+            elapsed = time.monotonic() - start
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+    assert elapsed < 10
+    assert proc.returncode == -9

@@ -185,3 +185,76 @@ def test_fetch_removes_stale_partial_clone_dir(tmp_path: Path) -> None:
     assert (stale / ".git").exists()
     assert (stale / "file.txt").read_text(encoding="utf-8") == "device"
     assert not (stale / "partial-file").exists()
+
+
+@requires_git
+def test_fetch_clones_pinned_revision(tmp_path: Path) -> None:
+    """repository.revision pins a device tree to a tag/branch via --branch."""
+    base = tmp_path
+    device_git = _make_repo(base / "device-tree", content="v1")
+    _git("tag", "v1.0", cwd=device_git)
+    (device_git / "file.txt").write_text("v2", encoding="utf-8")
+    _git("add", ".", cwd=device_git)
+    _git("commit", "-m", "second", cwd=device_git)
+    manifest_git = _make_manifest(
+        base,
+        """<manifest>
+  <remote name="origin" fetch="." revision="main"/>
+  <default remote="origin"/>
+</manifest>
+""",
+    )
+    recipe = _recipe(
+        str(manifest_git),
+        repositories=[
+            {
+                "type": "device",
+                "url": str(device_git),
+                "target_path": "device/test/testdev",
+                "revision": "v1.0",
+            }
+        ],
+    )
+    workspace = base / "ws"
+    SourceFetcher(recipe, workspace, jobs=1).fetch()
+
+    cloned = workspace / "device" / "test" / "testdev"
+    assert (cloned / ".git").exists()
+    assert (cloned / "file.txt").read_text(encoding="utf-8") == "v1"
+
+
+def test_run_retry_cleans_partial_clone_between_attempts(tmp_path: Path, monkeypatch) -> None:
+    """A failed clone attempt removes its partial destination before retrying."""
+    monkeypatch.setattr(SourceFetcher, "RETRY_DELAY_SECONDS", 0)
+    (tmp_path / "ws").mkdir()
+    fetcher = SourceFetcher(_recipe("https://example.com/android.git"), tmp_path / "ws")
+    dest = tmp_path / "dest"
+    marker = tmp_path / "attempt-marker"
+    script = (
+        f"if [ ! -f {marker} ]; then touch {marker}; mkdir -p {dest}; exit 1; fi; "
+        f"if [ -d {dest} ]; then exit 2; fi; mkdir -p {dest}; exit 0"
+    )
+
+    fetcher._run_retry(["bash", "-c", script], "clone test", retry_cleanup_path=dest)
+
+    assert marker.is_file()
+    assert dest.is_dir()
+
+
+def test_run_retry_keeps_pre_existing_destination(tmp_path: Path, monkeypatch) -> None:
+    """A destination owned by the caller is never removed between retries."""
+    monkeypatch.setattr(SourceFetcher, "RETRY_DELAY_SECONDS", 0)
+    (tmp_path / "ws").mkdir()
+    fetcher = SourceFetcher(_recipe("https://example.com/android.git"), tmp_path / "ws")
+    dest = tmp_path / "owned"
+    dest.mkdir()
+    (dest / "keep.txt").write_text("keep", encoding="utf-8")
+
+    with pytest.raises(FetchError):
+        fetcher._run_retry(
+            ["bash", "-c", "exit 1"],
+            "clone test",
+            retry_cleanup_path=dest,
+        )
+
+    assert (dest / "keep.txt").is_file()

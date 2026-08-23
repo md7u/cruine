@@ -246,7 +246,8 @@ class EnvironmentManager:
             if not report.java.is_jdk:
                 log.critical(
                     "javac not found - AOSP requires a full JDK, not a bare JRE. "
-                    "Install one, e.g.: mcx/ sudo pacman/apt -i/-S/install openjdk-17-jdk"
+                    "Install one, e.g.: sudo pacman -S jdk17-openjdk (Arch) or "
+                    "sudo apt install openjdk-17-jdk (Debian/Ubuntu)"
                 )
                 return report
             if report.java.aosp_hint and report.java.major not in (8, 11, 17):
@@ -254,7 +255,8 @@ class EnvironmentManager:
         elif "java" in report.missing_required:
             log.critical(
                 "No Java runtime found - AOSP requires a JDK to build. "
-                "Install one, e.g.: mcx/ sudo pacman/apt -i/-S/install openjdk-17-jdk"
+                "Install one, e.g.: sudo pacman -S jdk17-openjdk (Arch) or "
+                "sudo apt install openjdk-17-jdk (Debian/Ubuntu)"
             )
             return report
         if report.missing_required:

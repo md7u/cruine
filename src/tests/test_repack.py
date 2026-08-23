@@ -50,6 +50,14 @@ def test_input_model_validation() -> None:
         InputModel(archive="x", format="rar")
 
 
+def test_input_model_validates_assignment() -> None:
+    model = InputModel(archive="x.zip")
+    model.format = "ZIP"
+    assert model.format == ".zip"
+    with pytest.raises(ValidationError):
+        model.format = "rar"
+
+
 def test_recipe_accepts_input() -> None:
     recipe = RecipeSchema.model_validate(_repack_recipe("rom.zip"))
     assert recipe.input.archive == "rom.zip"

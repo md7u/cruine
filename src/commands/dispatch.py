@@ -35,6 +35,6 @@ def dispatch(argv: list[str]) -> int:
     except KeyboardInterrupt:
         print("interrupted", file=sys.stderr)
         return 130
-    except (FileNotFoundError, ValueError, OSError, RuntimeError) as exc:
+    except Exception as exc:
         print(f"cru: {exc}", file=sys.stderr)
         return 1

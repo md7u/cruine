@@ -411,7 +411,7 @@ class ManifestSyncer:
             if self.recipe.rom.depth:
                 clone += ["--depth", str(self.recipe.rom.depth)]
             clone += [localize_url(manifest_url), str(self.manifests_dir)]
-            run_retry(clone, "manifest clone")
+            run_retry(clone, "manifest clone", retry_cleanup_path=self.manifests_dir)
             self._checkout_revision(
                 self.manifests_dir, manifest_url, self.recipe.rom.branch, fresh=True
             )
@@ -504,7 +504,7 @@ class ManifestSyncer:
             if project.depth or self.recipe.rom.depth:
                 clone += ["--depth", str(project.depth or self.recipe.rom.depth)]
             clone += [url, str(dest)]
-            run_retry(clone, f"clone {project.path}")
+            run_retry(clone, f"clone {project.path}", retry_cleanup_path=dest)
         else:
             log.info(f"Updating {project.path} <- {url} @ {revision}")
             run_retry(

@@ -309,10 +309,7 @@ def _mix(index: int) -> list[Flag]:
             _f(None, long_a, f"{long_a[2:]} value", metavar="VAL"),
         ]
     if mode == 7:
-        return [
-            _f(short, short_long, short_help, action="store_true"),
-            _f(short, None, short_help, action="store_true"),
-        ]
+        return [_f(short, short_long, short_help, action="store_true")]
     if mode == 8:
         return [
             _f(None, long_a, f"{long_a[2:]} mode", metavar="VAL"),

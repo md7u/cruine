@@ -155,9 +155,12 @@ def _dry_run(
     ccache_state = (
         f"enabled ({recipe.options.ccache_size})" if recipe.options.use_ccache else "disabled"
     )
-    jobs = opts.jobs or recipe.options.parallel_jobs
-    if jobs:
-        log.info(f"Jobs         : {jobs}")
+    jobs = (
+        opts.jobs
+        or recipe.options.parallel_jobs
+        or EnvironmentManager().inspect_host().recommended_jobs
+    )
+    log.info(f"Jobs         : {jobs}")
     log.info(f"CCACHE       : {ccache_state}")
     log.info(f"Clean build  : {'yes' if opts.clean or recipe.options.clean_build else 'no'}")
     log.info(f"Format       : {recipe.output.format.value}")
@@ -205,7 +208,7 @@ def _run_repack(
         if out_dir.exists():
             log.info(f"Removing previous extraction: {out_dir}")
             shutil.rmtree(out_dir)
-        extractor.extract(recipe.input.archive, out_dir)
+        extractor.extract(recipe.input.archive, out_dir, format_hint=recipe.input.format)
 
     patcher.run_hooks("post_fetch")
     patcher.apply_patches()
@@ -297,10 +300,10 @@ def run_pipeline(opts: PipelineOptions) -> int:
             log.critical("Environment validation failed; install the missing tools and try again.")
             return 1
 
-        ok, free_gb = env_manager.check_disk_space(Path.cwd(), 10.0)
+        ok, free_gb = env_manager.check_disk_space(workspace.resolve(), 10.0)
         if not ok:
             log.warning(
-                f"Low free disk space on {Path.cwd().resolve()}: {free_gb:.1f} GB "
+                f"Low free disk space on {workspace.resolve()}: {free_gb:.1f} GB "
                 "(AOSP builds can require 200+ GB)"
             )
 
@@ -315,10 +318,11 @@ def run_pipeline(opts: PipelineOptions) -> int:
         if not opts.skip_fetch:
             fetcher = SourceFetcher(recipe, workspace, jobs=jobs)
             fetcher.fetch()
-            patcher.run_hooks("post_fetch")
-            patcher.apply_patches()
         else:
             log.warning("Skipping source fetch (--skip-fetch); assuming tree is present")
+
+        patcher.run_hooks("post_fetch")
+        patcher.apply_patches()
 
         patcher.run_hooks("pre_build")
 

@@ -138,3 +138,27 @@ def test_file_url_archive_accepted(tmp_path: Path) -> None:
     dest = tmp_path / "out"
     count = RomExtractor().extract(f"file://{archive}", dest)
     assert count == 3
+
+
+def test_extract_format_hint_overrides_suffix_detection(tmp_path: Path) -> None:
+    """A configured format hint wins over an undetectable filename suffix."""
+    archive = _make_zip(tmp_path / "payload.bin")
+    dest = tmp_path / "out"
+    count = RomExtractor().extract(str(archive), dest, format_hint=".zip")
+    assert count == 3
+    assert (dest / "boot.img").is_file()
+
+
+def test_extract_format_hint_takes_precedence_over_misleading_suffix(
+    tmp_path: Path,
+) -> None:
+    archive = _make_zip(tmp_path / "rom.tar.gz")
+    dest = tmp_path / "out"
+    count = RomExtractor().extract(str(archive), dest, format_hint="zip")
+    assert count == 3
+
+
+def test_extract_rejects_unknown_format_hint(tmp_path: Path) -> None:
+    archive = _make_zip(tmp_path / "rom.zip")
+    with pytest.raises(ExtractionError):
+        RomExtractor().extract(str(archive), tmp_path / "out", format_hint=".rar")
