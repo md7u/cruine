@@ -1,0 +1,46 @@
+cmake_minimum_required(VERSION 3.20)
+
+if(NOT CMAKE_TOOLCHAIN_FILE)
+  set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/toolchain.cmake"
+      CACHE FILEPATH "CMake toolchain file")
+endif()
+
+project(cruine VERSION 0.1.0 LANGUAGES NONE)
+
+include(GNUInstallDirs)
+
+execute_process(
+  COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/detect.sh" prefix
+  OUTPUT_VARIABLE DETECTED_PREFIX
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+if(NOT DETECTED_PREFIX)
+  set(DETECTED_PREFIX "/usr")
+endif()
+
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "${DETECTED_PREFIX}" CACHE PATH "Install prefix" FORCE)
+endif()
+
+set(CRUINE_BUILD_DIR "${CMAKE_BINARY_DIR}/cru-dist")
+set(CRUINE_OUTPUT    "${CMAKE_BINARY_DIR}/cru")
+
+add_custom_command(
+  OUTPUT "${CRUINE_OUTPUT}"
+  COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/scripts/package.sh" "${CRUINE_BUILD_DIR}"
+  COMMAND ${CMAKE_COMMAND} -E copy "${CRUINE_BUILD_DIR}/cru" "${CRUINE_OUTPUT}"
+  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/package.sh"
+          "${CMAKE_CURRENT_SOURCE_DIR}/src/__init__.py"
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  USES_TERMINAL
+  VERBATIM
+)
+
+add_custom_target(cru ALL DEPENDS "${CRUINE_OUTPUT}")
+
+install(PROGRAMS "${CRUINE_OUTPUT}" DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES docs/cru.1 docs/crush.1
+        DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
+install(FILES docs/rc.json.5
+        DESTINATION ${CMAKE_INSTALL_MANDIR}/man5)
