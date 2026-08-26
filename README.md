@@ -568,7 +568,7 @@ List of shell commands run at pipeline phases:
 
 ---
 
-### Example: LineageOS for Xiaomi Poco F3
+### Example: LineageOS 21 for Xiaomi Poco F3
 
 ```json
 {
