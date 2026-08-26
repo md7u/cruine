@@ -19,11 +19,14 @@ BUILDVENV="${ROOT}/.venv"
 BUILDVENVPY="${BUILDVENV}/bin/python3"
 
 pip_venv() {
-    "${PYTHON}" -m pip --python "${BUILDVENVPY}" "$@"
+    "${BUILDVENVPY}" -m pip "$@"
 }
 
 if [ ! -x "${BUILDVENVPY}" ]; then
-    "${PYTHON}" -m venv "${BUILDVENV}"
+    "${PYTHON}" -m venv --without-pip "${BUILDVENV}" 2>/dev/null \
+        || "${PYTHON}" -m venv "${BUILDVENV}"
+    "${BUILDVENVPY}" -m ensurepip --upgrade 2>/dev/null \
+        || "${PYTHON}" -m venv "${BUILDVENV}"
     pip_venv install --upgrade pip
     pip_venv install pyinstaller
     pip_venv install "${ROOT}/src"

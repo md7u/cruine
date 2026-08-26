@@ -206,18 +206,17 @@ Cruine is a pure-Python project (Python 3.10+). Recommended setup:
 
 ```sh
 python3 -m venv .venv
-python3 -m pip --python .venv/bin/python install "./src[dev]"
+.venv/bin/python -m ensurepip --upgrade >/dev/null 2>&1 || python3 -m venv .venv
+.venv/bin/python -m pip install "./src[dev]"
 .venv/bin/python -m pytest src/tests   # optional: run the test suite
 ```
 
-Or build as binary:
+Or build as a standalone binary (no system Python needed at runtime):
 
 ```sh
 make build      # produces target/cru via PyInstaller
 make install    # installs cru + man pages under $(PREFIX)
 ```
-
-The PyInstaller binary is self-contained and requires no system Python.
 
 The install prefix is auto-detected by `scripts/detect.sh`: **`/system`** on
 Cudane (musl-libc/LLVM) and **`/usr`** on glibc GNU/Linux distributions.
@@ -228,7 +227,9 @@ install` (Ninja), or `meson setup build -Dprefix=/custom` (Meson).
 
 - Runtime: `pydantic`, `py7zr`, `pycdlib`.
 - Dev/test: `pytest`, `ruff`.
-- Build: `make`, `ninja`, or `meson`; `python3` + `pip`; `pyinstaller`.
+- Build: `make`, `ninja`, or `meson`; `python3` + `pip` (bootstrapped via
+  `ensurepip` if the system `pip` module is absent, e.g. Python 3.12+);
+  `pyinstaller`.
 - Host tools checked at run time: `git`, `bash`, `tar` (required; `repo` is
   no longer needed — sync is native); `ccache`, `7z`, `mkisofs`,
   `genisoimage`, `xorriso`, `unzip` (optional).
@@ -237,6 +238,159 @@ install` (Ninja), or `meson setup build -Dprefix=/custom` (Meson).
   `g++`. Both compiler pairs are probed; the active profile picks the pair.
   Targets: `x86_64-unknown-linux-musl` / `aarch64-unknown-linux-musl` on
   Cudane, `x86_64-unknown-linux-gnu` / `aarch64-unknown-linux-gnu` elsewhere.
+
+### Target profiles
+
+Four cross-compilation targets are supported, combining two architectures
+with two libc/toolchain profiles:
+
+| Target | Arch | Libc | Compiler | Prefix | Triple |
+|---|---|---|---|---|---|
+| **Cudane amd64** | amd64 | musl | clang / clang++ | `/system` | `x86_64-unknown-linux-musl` |
+| **Cudane arm64** | arm64 | musl | clang / clang++ | `/system` | `aarch64-unknown-linux-musl` |
+| **glibc amd64** | amd64 | glibc | gcc / g++ | `/usr` | `x86_64-unknown-linux-gnu` |
+| **glibc arm64** | arm64 | glibc | gcc / g++ | `/usr` | `aarch64-unknown-linux-gnu` |
+
+The active profile is auto-detected from the host. To cross-compile or
+override the profile, set `CRUINE_LIBC` and/or `CC`/`CXX` on the command
+line. All four build backends (Make, Ninja, Meson, CMake) honour these
+overrides.
+
+### Build and install (Make)
+
+```sh
+# ── Native (host profile auto-detected) ─────────────────────────────────
+make build                    # target/cru binary
+make install                  # install under detected PREFIX (/usr or /system)
+make install DESTDIR=/mnt     # staging install
+make install PREFIX=/custom   # custom prefix
+make test                     # run test suite
+make lint                     # ruff check + format check
+make clean                    # remove build artifacts
+
+# ── Cudane amd64 (musl + clang) ─────────────────────────────────────────
+make build CC=clang CXX=clang++ CRUINE_LIBC=musl
+make install CC=clang CXX=clang++ CRUINE_LIBC=musl
+
+# ── Cudane arm64 (musl + clang, cross from amd64 host) ──────────────────
+make build CC=clang CXX=clang++ CRUINE_LIBC=musl ARCH=arm64
+make install CC=clang CXX=clang++ CRUINE_LIBC=musl ARCH=arm64
+
+# ── glibc amd64 (gcc) ──────────────────────────────────────────────────
+make build CC=gcc CXX=g++ CRUINE_LIBC=glibc
+make install CC=gcc CXX=g++ CRUINE_LIBC=glibc
+
+# ── glibc arm64 (gcc, cross from amd64 host) ───────────────────────────
+make build CC=gcc CXX=g++ CRUINE_LIBC=glibc ARCH=arm64
+make install CC=gcc CXX=g++ CRUINE_LIBC=glibc ARCH=arm64
+```
+
+### Build and install (Ninja)
+
+```sh
+# ── Native (host profile auto-detected) ─────────────────────────────────
+ninja                         # build builddir/cru
+ninja install                 # install under detected PREFIX
+DESTDIR=/mnt ninja install    # staging install
+
+# ── Cudane amd64 (musl + clang) ─────────────────────────────────────────
+CC=clang CXX=clang++ CRUINE_LIBC=musl ninja
+CC=clang CXX=clang++ CRUINE_LIBC=musl ninja install
+
+# ── Cudane arm64 (musl + clang, cross from amd64 host) ──────────────────
+CC=clang CXX=clang++ CRUINE_LIBC=musl ARCH=arm64 ninja
+CC=clang CXX=clang++ CRUINE_LIBC=musl ARCH=arm64 ninja install
+
+# ── glibc amd64 (gcc) ──────────────────────────────────────────────────
+CC=gcc CXX=g++ CRUINE_LIBC=glibc ninja
+CC=gcc CXX=g++ CRUINE_LIBC=glibc ninja install
+
+# ── glibc arm64 (gcc, cross from amd64 host) ───────────────────────────
+CC=gcc CXX=g++ CRUINE_LIBC=glibc ARCH=arm64 ninja
+CC=gcc CXX=g++ CRUINE_LIBC=glibc ARCH=arm64 ninja install
+```
+
+### Build and install (Meson)
+
+```sh
+# ── Native (host profile auto-detected) ─────────────────────────────────
+meson setup build              # configure (detects profile, generates cross.txt)
+meson compile -C build         # build
+meson install -C build         # install under detected PREFIX
+DESTDIR=/mnt meson install -C build   # staging install
+meson setup build -Dprefix=/custom    # custom prefix
+
+# ── Cudane amd64 (musl + clang) ─────────────────────────────────────────
+CC=clang CXX=clang++ CRUINE_LIBC=musl meson setup build
+meson compile -C build
+meson install -C build
+
+# ── Cudane arm64 (musl + clang, cross from amd64 host) ──────────────────
+CC=clang CXX=clang++ CRUINE_LIBC=musl ARCH=arm64 meson setup build
+meson compile -C build
+meson install -C build
+
+# ── glibc amd64 (gcc) ──────────────────────────────────────────────────
+CC=gcc CXX=g++ CRUINE_LIBC=glibc meson setup build
+meson compile -C build
+meson install -C build
+
+# ── glibc arm64 (gcc, cross from amd64 host) ───────────────────────────
+CC=gcc CXX=g++ CRUINE_LIBC=glibc ARCH=arm64 meson setup build
+meson compile -C build
+meson install -C build
+```
+
+`scripts/cross.sh` runs automatically during `meson setup` and writes
+`cross.txt` with the detected compiler, target triple, and include/lib
+paths. Standalone usage: `./scripts/cross.sh [output]`.
+
+### Build and install (CMake)
+
+```sh
+# ── Native (host profile auto-detected) ─────────────────────────────────
+cmake -B build                 # configure (loads toolchain.cmake)
+cmake --build build            # build
+cmake --install build          # install under detected PREFIX
+DESTDIR=/mnt cmake --install build   # staging install
+cmake -B build -DCMAKE_INSTALL_PREFIX=/custom   # custom prefix
+
+# ── Cudane amd64 (musl + clang) ─────────────────────────────────────────
+CC=clang CXX=clang++ CRUINE_LIBC=musl cmake -B build
+cmake --build build
+cmake --install build
+
+# ── Cudane arm64 (musl + clang, cross from amd64 host) ──────────────────
+CC=clang CXX=clang++ CRUINE_LIBC=musl ARCH=arm64 cmake -B build
+cmake --build build
+cmake --install build
+
+# ── glibc amd64 (gcc) ──────────────────────────────────────────────────
+CC=gcc CXX=g++ CRUINE_LIBC=glibc cmake -B build
+cmake --build build
+cmake --install build
+
+# ── glibc arm64 (gcc, cross from amd64 host) ───────────────────────────
+CC=gcc CXX=g++ CRUINE_LIBC=glibc ARCH=arm64 cmake -B build
+cmake --build build
+cmake --install build
+```
+
+`toolchain.cmake` is loaded automatically and sets the compiler, target
+triple, and `CMAKE_FIND_ROOT_PATH` from the detected profile. Override any
+value with standard CMake variables (`-DCMAKE_C_COMPILER=...`,
+`-DCMAKE_INSTALL_PREFIX=...`).
+
+### Dev install (editable, no binary)
+
+For development without building a standalone binary:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m ensurepip --upgrade >/dev/null 2>&1 || python3 -m venv .venv
+.venv/bin/python -m pip install -e "./src[dev]"
+.venv/bin/python -m pytest src/tests   # run tests
+```
 
 ---
 
@@ -270,6 +424,16 @@ The build files and `cru doctor` share one model of the host:
   `CRUINE_LIBC=musl`.
 - **glibc GNU/Linux** — glibc, GCC. Installs under `/usr`; target triples
   `x86_64-unknown-linux-gnu` / `aarch64-unknown-linux-gnu`.
+
+### Environment variables
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `CC` | auto-detected (`clang` or `gcc`) | C compiler |
+| `CXX` | auto-detected (`clang++` or `g++`) | C++ compiler |
+| `CRUINE_LIBC` | auto-detected | `musl` or `glibc` |
+| `CRUINE_PREFIX` | auto-detected (`/system` or `/usr`) | Install prefix |
+| `ARCH` | auto-detected (`amd64` or `arm64`) | Target architecture |
 
 ---
 
@@ -1026,7 +1190,8 @@ Man pages install with `make install` (or `ninja install` /
 
 ```sh
 python3 -m venv .venv
-python3 -m pip --python .venv/bin/python install "./src[dev]"
+.venv/bin/python -m ensurepip --upgrade >/dev/null 2>&1 || python3 -m venv .venv
+.venv/bin/python -m pip install "./src[dev]"
 make test      # .venv/bin/python -m pytest src/tests
 make lint      # ruff check + ruff format --check on src/
 make build     # standalone target/cru binary

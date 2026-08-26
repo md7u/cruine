@@ -13,10 +13,11 @@ DESTDIR ?=
 all: build
 
 deps:
-	-$(PYTHON) -m venv $(VENV)
-	$(PYTHON) -m pip --python $(VENV)/bin/python install --upgrade pip
-	$(PYTHON) -m pip --python $(VENV)/bin/python install pyinstaller
-	$(PYTHON) -m pip --python $(VENV)/bin/python install -e "./src[dev]"
+	-$(PYTHON) -m venv --without-pip $(VENV)
+	$(VENV)/bin/python -m ensurepip --upgrade >/dev/null 2>&1 || $(PYTHON) -m venv $(VENV)
+	$(VENV)/bin/python -m pip install --upgrade pip
+	$(VENV)/bin/python -m pip install pyinstaller
+	$(VENV)/bin/python -m pip install -e "./src[dev]"
 
 build: deps
 	scripts/package.sh $(REPO_ROOT)/target
