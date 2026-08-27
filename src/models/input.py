@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, field_validator
+import dataclasses
+
+from cruine.models.base import BaseModel
 
 SUPPORTED_INPUT_FORMATS: tuple[str, ...] = (
     ".zip",
@@ -15,15 +17,20 @@ SUPPORTED_INPUT_FORMATS: tuple[str, ...] = (
 )
 
 
-class InputModel(BaseModel):
-    model_config = ConfigDict(validate_assignment=True)
+def _field_validator(field_name: str):
+    def decorator(fn):
+        fn._field_name = field_name
+        return staticmethod(fn)
+    return decorator
 
+
+@dataclasses.dataclass
+class InputModel(BaseModel):
     archive: str | None = None
     format: str | None = None
 
-    @field_validator("archive")
-    @classmethod
-    def _validate_archive(cls, value: str | None) -> str | None:
+    @_field_validator("archive")
+    def _validate_archive(value: str | None) -> str | None:
         if value is None:
             return None
         value = value.strip()
@@ -31,9 +38,8 @@ class InputModel(BaseModel):
             raise ValueError("input.archive must not be empty")
         return value
 
-    @field_validator("format")
-    @classmethod
-    def _validate_format(cls, value: str | None) -> str | None:
+    @_field_validator("format")
+    def _validate_format(value: str | None) -> str | None:
         if value is None:
             return None
         value = value.strip().lower()

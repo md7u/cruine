@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 from cruine.cli import PipelineOptions, run_pipeline, run_repack
+from cruine.models.base import ValidationError
 from cruine.models.input import InputModel
 from cruine.models.recipe import RecipeSchema
-from pydantic import ValidationError
 
 
 def _make_rom_zip(path: Path) -> Path:
@@ -59,7 +59,7 @@ def test_input_model_validates_assignment() -> None:
 
 
 def test_recipe_accepts_input() -> None:
-    recipe = RecipeSchema.model_validate(_repack_recipe("rom.zip"))
+    recipe = RecipeSchema.from_dict(_repack_recipe("rom.zip"))
     assert recipe.input.archive == "rom.zip"
 
 

@@ -1,15 +1,15 @@
-"""Tests for the pydantic data models."""
+"""Tests for the data models."""
 
 from __future__ import annotations
 
 from typing import Any
 
 import pytest
+from cruine.models.base import ValidationError
 from cruine.models.device import DeviceModel, RepositoryModel
 from cruine.models.options import OptionsModel
 from cruine.models.output import OutputFormat, OutputModel
 from cruine.models.recipe import RecipeSchema
-from pydantic import ValidationError
 
 
 def _device(**overrides: Any) -> dict:
@@ -88,13 +88,13 @@ def test_device_allows_empty_sources_for_repack() -> None:
     device = DeviceModel(codename="alioth", repositories=[], files=[])
     assert device.repositories == []
     with pytest.raises(ValidationError):
-        RecipeSchema.model_validate(_recipe(device={"codename": "alioth"}))
+        RecipeSchema.from_dict(_recipe(device={"codename": "alioth"}))
     repack = _recipe(input={"archive": "/tmp/stock.zip"}, device={"codename": "alioth"})
-    assert RecipeSchema.model_validate(repack).input.archive == "/tmp/stock.zip"
+    assert RecipeSchema.from_dict(repack).input.archive == "/tmp/stock.zip"
 
 
 def test_recipe_round_trip() -> None:
-    recipe = RecipeSchema.model_validate(_recipe())
+    recipe = RecipeSchema.from_dict(_recipe())
     assert recipe.project_name == "TestROM"
     assert recipe.lunch_combo() == "lineage_alioth-userdebug"
     assert recipe.output.format is OutputFormat.ZIP

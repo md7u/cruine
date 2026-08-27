@@ -28,6 +28,7 @@ import os
 import shutil
 import subprocess
 import urllib.parse
+import urllib.request
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -112,6 +113,8 @@ class ParsedManifest:
         if fetch and not _is_absolute_fetch(fetch):
             fetch = urllib.parse.urljoin(manifest_url, fetch).rstrip("/")
         base = fetch.rstrip("/")
+        if base.endswith(".git") and "/" in base:
+            base = base[:-4]
         return f"{base}/{project.name}" if base else project.name
 
     def revision_for(self, project: ManifestProject) -> str:
@@ -317,6 +320,22 @@ class ManifestParser:
         name = node.get("name")
         if not name:
             raise SyncError("include element missing name")
+        if name.startswith("http://") or name.startswith("https://"):
+            try:
+                with urllib.request.urlopen(name, timeout=60) as resp:
+                    xml_bytes = resp.read()
+            except Exception as exc:
+                raise SyncError(
+                    f"failed to fetch remote include {name!r}: {exc}"
+                ) from exc
+            try:
+                root = ET.fromstring(xml_bytes)
+            except ET.ParseError as exc:
+                raise SyncError(
+                    f"invalid remote include manifest {name!r}: {exc}"
+                ) from exc
+            self._walk(root, path_prefix)
+            return
         path = (self.manifest_dir / name).resolve()
         if not path.is_file():
             raise SyncError(f"included manifest not found: {name}")

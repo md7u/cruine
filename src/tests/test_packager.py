@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 import tarfile
 import zipfile
 from pathlib import Path
@@ -26,23 +27,23 @@ def _make_out_dir(tmp_path: Path) -> Path:
 
 
 def _recipe(fmt: str = ".zip") -> RecipeSchema:
-    return RecipeSchema(
-        project_name="TestROM",
-        rom={
+    return RecipeSchema.from_dict({
+        "project_name": "TestROM",
+        "rom": {
             "source": "https://example.com/android.git",
             "branch": "b",
             "lunch_prefix": "test",
             "build_target": "bacon",
         },
-        device={
+        "device": {
             "codename": "testdevice",
             "repositories": [
                 {"type": "device", "url": "https://e.com/d.git", "target_path": "device/x/a"}
             ],
         },
-        options={"use_ccache": False},
-        output={"format": fmt},
-    )
+        "options": {"use_ccache": False},
+        "output": {"format": fmt},
+    })
 
 
 def test_package_zip(tmp_path: Path) -> None:
@@ -100,9 +101,6 @@ def test_human_size() -> None:
 
 
 def test_7z_cli_passes_excluded_dirs(tmp_path: Path, monkeypatch) -> None:
-    import shutil
-    import subprocess
-
     _make_out_dir(tmp_path)
     recipe = _recipe(".7z")
     recipe.output.exclude_dirs = ["system/obj", "cache"]
@@ -147,39 +145,4 @@ def test_package_7z_cli_stores_android_tree_layout(tmp_path: Path) -> None:
     assert "out/" not in listing
 
 
-def test_package_iso_closes_pycdlib_on_error(tmp_path: Path, monkeypatch) -> None:
-    import shutil
-    import sys
 
-    _make_out_dir(tmp_path)
-    packager = OutputPackager(_recipe(".iso"), tmp_path, tmp_path / "dest")
-    instances: list[object] = []
-
-    class FakePyCdlib:
-        def __init__(self) -> None:
-            self.closed = False
-            instances.append(self)
-
-        def new(self, **kwargs) -> None:
-            pass
-
-        def add_directory(self, *args, **kwargs) -> None:
-            pass
-
-        def add_fp(self, *args, **kwargs) -> None:
-            pass
-
-        def write(self, target) -> None:
-            raise RuntimeError("write failed")
-
-        def close(self) -> None:
-            self.closed = True
-
-    fake_module = type(sys)("fake_pycdlib")
-    fake_module.PyCdlib = FakePyCdlib
-    monkeypatch.setitem(sys.modules, "pycdlib", fake_module)
-    monkeypatch.setattr(shutil, "which", lambda name: None)
-
-    with pytest.raises(PackagingError):
-        packager._package_iso(tmp_path / "out", tmp_path / "dest" / "x.iso")
-    assert instances and instances[0].closed is True

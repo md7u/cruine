@@ -69,7 +69,7 @@ def _recipe(source: str, branch: str = "main", **extra: object) -> RecipeSchema:
         "input": {"archive": "file:///tmp/unused.tar.gz"},
     }
     data["rom"].update(extra)
-    return RecipeSchema.model_validate(data)
+    return RecipeSchema.from_dict(data)
 
 
 def _sample_manifest() -> str:

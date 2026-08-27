@@ -51,7 +51,7 @@ def _recipe(source: str, **device: object) -> RecipeSchema:
         "output": {"format": ".zip"},
         "input": {"archive": "file:///tmp/unused.tar.gz"},
     }
-    return RecipeSchema.model_validate(data)
+    return RecipeSchema.from_dict(data)
 
 
 @requires_git

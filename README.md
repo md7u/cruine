@@ -81,6 +81,37 @@ prints the entire plan before anything executes.
 
 ---
 
+## Manifest Compatibility
+
+Cruine's sync engine parses AOSP-style manifest XML directly (no `repo`
+binary required).  It supports the tags and attributes needed for
+LineageOS, AOSP, crDroid, PixelOS, EvolutionX, and other AOSP-family
+ROMs:
+
+| Tag / Attribute | Supported | Notes |
+|---|---|---|
+| `<remote>` — `name`, `fetch`, `revision`, `alias` | ✅ | Trailing `.git` suffixes in `fetch` URLs are stripped before appending project names (GitHub, GitLab, Gerrit). |
+| `<default>` — `remote`, `revision` | ✅ | `sync-j` is ignored (Cruine has its own `-j` jobs parameter). |
+| `<project>` — `name`, `path`, `remote`, `revision`, `groups`, `clone-depth` | ✅ | Groups filtering respects `default`/`all`/`notdefault` semantics. |
+| `<project>/<copyfile>` — `src`, `dest` | ✅ | Applied after sync, relative to project directory. |
+| `<project>/<linkfile>` — `src`, `dest` | ✅ | Applied after sync, relative to project directory. |
+| `<remove-project>` — `name` | ✅ | Merged across local manifests; projects are excluded from sync. |
+| `<extend-project>` — `name`, `path`, `remote`, `revision` | ✅ | Applied after all includes are resolved. |
+| `<include>` — `name` (local or remote URL) | ✅ | Local: resolved relative to manifest repo root. Remote: fetched via HTTPS (no auth). |
+| `<submanifest>` — `path` | ✅ | Recursively walks the sub-manifest. |
+
+**Intentionally skipped** (repo-specific, no build impact): `<default
+sync-j>`, `<remote review>`, `<project upstream/dest-branch/force/sync-s>`,
+`<repo-hooks>`, `<superproject>`, `<manifest-server>`, `<contactinfo>`,
+`<notice>`, `<annotate>`.  Unknown tags are silently ignored.
+
+**Known limitation:** Remote `<include>` URLs that require authentication
+are not supported (Cruine fetches them anonymously via HTTPS).  LineageOS
+and most AOSP-family ROMs ship all included XML files inside the same
+manifest repository, so this is rarely a problem.
+
+---
+
 ## Requirements
 
 A full legacy invocation runs the following stages in order. Each stage can
@@ -225,7 +256,8 @@ install` (Ninja), or `meson setup build -Dprefix=/custom` (Meson).
 
 ### Dependencies
 
-- Runtime: `pydantic`, `py7zr`, `pycdlib`.
+- Runtime: none (`cruine` is pure standard-library — no third-party
+  packages).
 - Dev/test: `pytest`, `ruff`.
 - Build: `make`, `ninja`, or `meson`; `python3` + `pip` (bootstrapped via
   `ensurepip` if the system `pip` module is absent, e.g. Python 3.12+);
@@ -411,7 +443,7 @@ the artifact is identical regardless of the frontend.
 | `toolchain.cmake` | CMake toolchain for the detected profile (compiler, `CMAKE_FIND_ROOT_PATH` = detected prefix). |
 | `scripts/pkgconfig.sh` | `pkg-config` wrapper pointing `PKG_CONFIG_LIBDIR` at the detected prefix (`/system/lib/pkgconfig` on Cudane, `/usr/lib/pkgconfig` otherwise). |
 | `scripts/package.sh` | Builds the PyInstaller binary into a scratch venv (non-editable install) and runs `packaging/cru.spec`. Used by Make, Ninja, and Meson. |
-| `packaging/cru.spec` | PyInstaller spec; collects third-party data/dylibs (`pydantic`, `py7zr`, `pycdlib`). |
+| `packaging/cru.spec` | PyInstaller spec; builds the standalone `cru` binary (no third-party data/dylibs to collect — pure stdlib). |
 
 ### Host profiles
 
@@ -535,6 +567,7 @@ extraction and reuses the existing tree.
 | `build_variant` | `userdebug` | One of `eng`, `user`, `userdebug` |
 | `parallel_jobs` | host-recommended | Parallel job count |
 | `extra_make_args` | `[]` | Extra arguments appended to the `mka` invocation |
+| `build_container` | `null` | Path to a chroot directory; build runs inside it via `chroot` |
 
 ### `output` (optional)
 
@@ -968,9 +1001,9 @@ The artifact is written to the destination as
 | `.tar.bz2` | Bzip2-compressed tar |
 | `.tar.xz` | XZ-compressed tar |
 | `.tgz` | Alias for `.tar.gz` |
-| `.7z` | 7-Zip archive (bundled library, CLI fallback) |
+| `.7z` | 7-Zip archive (`7z` binary) |
 | `.img` | Raw image |
-| `.iso` | ISO image (`pycdlib`, `mkisofs`/`genisoimage`/`xorriso` fallback) |
+| `.iso` | ISO image (`mkisofs`/`genisoimage`/`xorriso`) |
 | `.tar` | Uncompressed tar |
 
 Compression level is 0–9 (default 6). `obj` and `symbols` directories are

@@ -187,29 +187,13 @@ class OutputPackager:
                 tf.add(entry, arcname=arc, recursive=False, **filter_kwargs)
 
     def _make_7z(self, out_dir: Path, target: Path, level: int) -> None:
-        try:
-            import py7zr
-        except ImportError:
-            self._make_7z_cli(out_dir, target, level)
-            return
-        try:
-            with py7zr.SevenZipFile(
-                target, "w", filters=[{"id": py7zr.FILTER_LZMA2, "preset": level}]
-            ) as archive:
-                for dirpath, _, filenames in self._walk(out_dir):
-                    rel = dirpath.relative_to(out_dir).as_posix()
-                    for name in filenames:
-                        entry = dirpath / name
-                        arc = f"{rel}/{name}" if rel != "." else name
-                        archive.write(entry, arcname=arc)
-        except Exception as exc:
-            raise PackagingError(f"7z packaging failed: {exc}") from exc
+        self._make_7z_cli(out_dir, target, level)
 
     def _make_7z_cli(self, out_dir: Path, target: Path, level: int) -> None:
         sevenz = shutil.which("7z")
         if not sevenz:
             raise PackagingError(
-                "7z packaging requested but neither py7zr nor the '7z' binary is available"
+                "7z packaging requires the '7z' binary (p7zip) to be installed"
             )
         command = [
             sevenz,
@@ -249,25 +233,11 @@ class OutputPackager:
 
     def _package_iso(self, out_dir: Path, target: Path) -> None:
         tool = shutil.which("mkisofs") or shutil.which("genisoimage") or shutil.which("xorriso")
-        if tool:
-            self._iso_cli(tool, out_dir, target)
-            return
-        try:
-            import pycdlib
-        except ImportError:
+        if not tool:
             raise PackagingError(
-                "ISO packaging requested but neither pycdlib nor "
-                "mkisofs/genisoimage/xorriso is available"
-            ) from None
-        iso = pycdlib.PyCdlib()
-        iso.new(interchange_level=4, joliet=3, rock_ridge="1.09")
-        try:
-            self._iso_add_tree(iso, out_dir, out_dir)
-            iso.write(str(target))
-        except Exception as exc:
-            raise PackagingError(f"ISO packaging failed: {exc}") from exc
-        finally:
-            iso.close()
+                "ISO packaging requires one of: mkisofs, genisoimage, xorriso"
+            )
+        self._iso_cli(tool, out_dir, target)
 
     def _iso_cli(self, tool: str, out_dir: Path, target: Path) -> None:
         if Path(tool).name == "xorriso":
@@ -290,18 +260,4 @@ class OutputPackager:
                 f"ISO creation failed: {(proc.stderr or '').strip() or (proc.stdout or '')[-500:]}"
             )
 
-    def _iso_add_tree(self, iso, base: Path, current: Path) -> None:
-        for entry in sorted(current.iterdir()):
-            if entry.name in self._exclude_dirs and entry.is_dir():
-                continue
-            if entry.is_dir() and not entry.is_symlink():
-                rel = entry.relative_to(base).as_posix()
-                iso.add_directory(f"/{rel.upper()}", rr_name=rel, joliet_path=f"/{rel}")
-                self._iso_add_tree(iso, base, entry)
-            elif entry.is_file():
-                rel = entry.relative_to(base).as_posix()
-                try:
-                    with open(entry, "rb") as handle:
-                        iso.add_fp(handle, f"/{rel.upper()}", rr_name=rel, joliet_path=f"/{rel}")
-                except OSError:
-                    log.warning(f"Skipping unreadable file in ISO: {rel}")
+

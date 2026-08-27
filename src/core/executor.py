@@ -119,6 +119,13 @@ class BuildExecutor:
         script.append(build_command)
 
         joined = " && ".join(script)
+        if options.build_container:
+            chroot = options.build_container
+            log.info(f"Wrapping build in chroot: {chroot}")
+            joined = (
+                f"chroot {shlex.quote(chroot)} /bin/bash -c "
+                f"{shlex.quote(joined)}"
+            )
         if self.mem_limit_mb:
             joined = f"ulimit -v {self.mem_limit_mb * 1024}; {joined}"
         log.info(f"Lunch combo: {lunch} | jobs: {jobs} | target: {self.recipe.rom.build_target}")

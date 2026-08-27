@@ -1,29 +1,34 @@
-"""Pydantic schema validation models."""
+"""Schema validation models."""
 
 from __future__ import annotations
 
 from typing import Any
 
+from cruine.models.base import ValidationError
 from cruine.models.output import OutputFormat
 from cruine.models.recipe import RecipeSchema
-from pydantic import ValidationError
 
 
 class RecipeValidator:
-    """Validates raw recipe dictionaries against the pydantic schema."""
+    """Validates raw recipe dictionaries against the schema."""
 
     @classmethod
     def validate_dict(cls, data: dict[str, Any]) -> RecipeSchema:
         if not isinstance(data, dict):
             raise TypeError("Recipe root must be a JSON object")
         try:
-            return RecipeSchema.model_validate(data)
+            return RecipeSchema.from_dict(data)
         except ValidationError as exc:
             details = []
             for error in exc.errors():
-                location = ".".join(str(part) for part in error["loc"]) or "<root>"
-                details.append(f"  - {location}: {error['msg']} (type={error['type']})")
-            raise ValueError("rc.json failed schema validation:\n" + "\n".join(details)) from exc
+                location = error.get("loc", "<root>")
+                fmt = error.get("type", "?")
+                details.append(
+                    f"  - {location}: {error.get('msg', '?')} (type={fmt})"
+                )
+            raise ValueError(
+                "rc.json failed schema validation:\n" + "\n".join(details)
+            ) from exc
 
     @staticmethod
     def normalize_format(value: str) -> OutputFormat:

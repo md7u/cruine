@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+import dataclasses
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator
+from cruine.models.base import BaseModel, ValidationError
+
+
+def _field_validator(field_name: str):
+    def decorator(fn):
+        fn._field_name = field_name
+        return staticmethod(fn)
+    return decorator
 
 
 class OutputFormat(str, Enum):
@@ -19,27 +27,38 @@ class OutputFormat(str, Enum):
     TAR = ".tar"
 
 
+@dataclasses.dataclass
 class OutputModel(BaseModel):
     format: OutputFormat = OutputFormat.ZIP
     custom_name: str | None = None
-    compression_level: int = Field(default=6, ge=0, le=9)
-    exclude_dirs: list[str] = Field(default_factory=lambda: ["obj", "symbols"])
+    compression_level: int = 6
+    exclude_dirs: list[str] = dataclasses.field(default_factory=lambda: ["obj", "symbols"])
 
-    @field_validator("format", mode="before")
-    @classmethod
-    def _normalize_format(cls, value: object) -> object:
-        if isinstance(value, OutputFormat):
-            return value
-        if isinstance(value, str):
-            fmt = value.strip().lower()
+    def __post_init__(self) -> None:
+        if isinstance(self.format, str):
+            fmt = self.format.strip().lower()
             if not fmt.startswith("."):
                 fmt = f".{fmt}"
-            return OutputFormat(fmt)
-        return value
+            try:
+                self.format = OutputFormat(fmt)
+            except ValueError as exc:
+                raise ValidationError(
+                    [{"loc": "format", "msg": str(exc), "type": "value_error"}]
+                ) from exc
+        if not (0 <= self.compression_level <= 9):
+            raise ValidationError(
+                [
+                    {
+                        "loc": "compression_level",
+                        "msg": "must be between 0 and 9",
+                        "type": "value_error",
+                    }
+                ]
+            )
+        super().__post_init__()
 
-    @field_validator("custom_name")
-    @classmethod
-    def _sanitize_custom_name(cls, value: str | None) -> str | None:
+    @_field_validator("custom_name")
+    def _sanitize_custom_name(value: str | None) -> str | None:
         if value is None:
             return None
         value = value.strip()

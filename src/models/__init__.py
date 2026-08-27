@@ -1,4 +1,4 @@
-"""Cruine data models (pydantic schemas)."""
+"""Cruine data models."""
 
 from __future__ import annotations
 

@@ -2,8 +2,8 @@
 
 `cruine` is installed as a normal (non-editable) wheel into a scratch build
 venv by `make build`, so PyInstaller resolves it from site-packages without
-the PEP 660 editable-install incompatibility. Third-party packages that ship
-data files / native binaries are collected via `collect_all`.
+the PEP 660 editable-install incompatibility. `cruine` has no third-party
+runtime dependencies, so there is nothing to collect via `collect_all`.
 """
 
 from __future__ import annotations
@@ -14,17 +14,13 @@ _SPEC_DIR = os.path.dirname(os.path.abspath(SPEC))
 _ROOT = os.path.dirname(_SPEC_DIR)
 
 from PyInstaller.building.build_main import EXE, PYZ, Analysis
-from PyInstaller.utils.hooks import collect_all  # noqa: E402
 
 _all_datas: list = []
 _all_binaries: list = []
 _all_hidden: list = []
 
-for package in ("pydantic", "py7zr", "pycdlib"):
-    datas, binaries, hidden = collect_all(package)
-    _all_datas += datas
-    _all_binaries += binaries
-    _all_hidden += hidden
+# `cruine` has no third-party runtime dependencies (pure stdlib), so there
+# are no external packages to collect via `collect_all`.
 
 a = Analysis(
     [os.path.join(_ROOT, "scripts", "cru.py")],

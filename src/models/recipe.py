@@ -2,33 +2,40 @@
 
 from __future__ import annotations
 
+import dataclasses
+
+from cruine.models.base import BaseModel
 from cruine.models.device import DeviceModel
 from cruine.models.input import InputModel
 from cruine.models.options import OptionsModel
 from cruine.models.output import OutputModel
 from cruine.models.patch import HookModel, PatchModel
 from cruine.models.rom import ROMModel
-from pydantic import BaseModel, Field, model_validator
 
 
+def _model_validator(fn):
+    fn._is_model_validator = True
+    return fn
+
+
+@dataclasses.dataclass
 class RecipeSchema(BaseModel):
-    project_name: str
-    rom: ROMModel
-    device: DeviceModel
-    input: InputModel = Field(default_factory=InputModel)
-    options: OptionsModel = Field(default_factory=OptionsModel)
-    output: OutputModel = Field(default_factory=OutputModel)
-    patches: list[PatchModel] = Field(default_factory=list)
-    hooks: list[HookModel] = Field(default_factory=list)
+    project_name: str = ""
+    rom: ROMModel = dataclasses.field(default_factory=ROMModel)
+    device: DeviceModel = dataclasses.field(default_factory=DeviceModel)
+    input: InputModel = dataclasses.field(default_factory=InputModel)
+    options: OptionsModel = dataclasses.field(default_factory=OptionsModel)
+    output: OutputModel = dataclasses.field(default_factory=OutputModel)
+    patches: list[PatchModel] = dataclasses.field(default_factory=list)
+    hooks: list[HookModel] = dataclasses.field(default_factory=list)
 
-    @model_validator(mode="after")
-    def _require_source(self) -> RecipeSchema:
+    @_model_validator
+    def _require_source(self) -> None:
         if not self.input.archive and not self.device.repositories and not self.device.files:
             raise ValueError(
                 "recipe must define at least one 'device.repositories' or "
                 "'device.files' entry, or set 'input.archive'"
             )
-        return self
 
     def lunch_combo(self) -> str:
         return f"{self.rom.lunch_prefix}_{self.device.codename}-{self.options.build_variant}"
